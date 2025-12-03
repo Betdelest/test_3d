@@ -6,7 +6,6 @@
 <title>Projet BETL</title>
 <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 <style>
-/* ---------- styles (same as before) ---------- */
 :root{--bg:#050816;--card:#07102a;--muted:#9aa6b2;--accent:#0a84ff;--glass:rgba(255,255,255,0.06);--plan-bg: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));}
 html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:Inter,Arial,Helvetica,sans-serif}
 header{display:flex;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);box-shadow:0 6px 18px rgba(0,0,0,0.35)}
@@ -100,15 +99,24 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
       <div style="font-size:12px;color:var(--muted)">3 fichier(s)</div>
     </div>
 
-    <!-- NEW modern Plans & Documents block -->
+    <!-- NEW modern Plans & Documents block (search left under title) -->
     <div class="plans-docs" id="plansDocsRoot">
       <header class="pd-header">
         <h3>Plans & Documents</h3>
-        <div class="pd-controls">
+        <div class="pd-controls" aria-hidden="false">
           <div id="pd-categories" class="pd-categories"></div>
-          <input id="pd-search" class="pd-search" placeholder="Rechercher un document..." aria-label="Recherche documents">
         </div>
       </header>
+
+      <!-- row: search (left) + categories (right) -->
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="flex:1;max-width:60%;">
+          <input id="pd-search" class="pd-search" placeholder="Rechercher un document..." aria-label="Recherche documents">
+        </div>
+        <div style="flex:1;display:flex;justify-content:flex-end;">
+          <div id="pd-categories-right" class="pd-categories" aria-hidden="false"></div>
+        </div>
+      </div>
 
       <main id="pd-grid" class="pd-grid">
       </main>
@@ -116,18 +124,19 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
 
   </aside>
 </div>
-  <!-- PREVIEW modal -->
-  <div id="previewModal" class="modal-backdrop">
-    <div class="modal">
-      <div class="modal-header">
-        <div id="previewTitle"></div>
-        <button class="pill" onclick="closePreview()">Fermer</button>
-      </div>
-      <div class="modal-body">
-        <iframe id="previewIframe" class="preview-iframe" src=""></iframe>
-      </div>
+
+<!-- PREVIEW modal -->
+<div id="previewModal" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div id="previewTitle"></div>
+      <button class="pill" onclick="closePreview()">Fermer</button>
+    </div>
+    <div class="modal-body">
+      <iframe id="previewIframe" class="preview-iframe" src=""></iframe>
     </div>
   </div>
+</div>
 
 <script>
   const MODELS = ["Djanet_arch.glb","Djanet_gc.glb"];
@@ -135,7 +144,7 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
 
   function encodePath(s){ return encodeURIComponent(s).replace(/%2F/g,'/'); }
 
-  /* header selector (placeholder "Choisir modèle 3D") */
+  /* --- header selector (placeholder "Choisir modèle 3D") --- */
   (function initHeaderSelector(){
     const hdr = document.getElementById('hdrControls');
     if(!hdr) return;
@@ -175,7 +184,7 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
     hdr.appendChild(sel);
   })();
 
-  /* build initial documents list for new UI */
+  /* ---------------- build initial documents list for new UI ---------------- */
   (function buildInitialDocsAndInit(){
     const docs = [];
     // PDFS is injected from server-side variable
@@ -195,11 +204,12 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
     window.INITIAL_DOCS = docs;
   })();
 
-  /* New Plans & Documents UI code */
+  /* New Plans & Documents UI code (search on left under title) */
   (function () {
     const documents = window.INITIAL_DOCS || [];
     const pdGrid = document.getElementById('pd-grid');
-    const pdCats = document.getElementById('pd-categories');
+    const pdCatsLeft = document.getElementById('pd-categories');
+    const pdCatsRight = document.getElementById('pd-categories-right');
     const pdSearch = document.getElementById('pd-search');
 
     function getCategories(docs){
@@ -212,32 +222,48 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
     let filteredDocs = documents.slice();
 
     function renderCategories(){
-      pdCats.innerHTML = "";
-      const categories = getCategories(documents);
-      if(categories.length===0) return;
-      const allBtn = document.createElement('button');
-      allBtn.className = 'pd-category-btn active';
-      allBtn.textContent = 'Tous';
-      allBtn.onclick = ()=> { activeCategory = null; setActiveCat(); renderGrid(); };
-      pdCats.appendChild(allBtn);
-      categories.forEach(c=>{
+      const cats = getCategories(documents);
+      // clear both containers
+      if(pdCatsLeft) pdCatsLeft.innerHTML = '';
+      if(pdCatsRight) pdCatsRight.innerHTML = '';
+      if(!cats || cats.length===0) return;
+
+      const makeBtn = (text) => {
         const b = document.createElement('button');
         b.className = 'pd-category-btn';
-        b.textContent = c;
-        b.onclick = ()=> { activeCategory = c; setActiveCat(); renderGrid(); };
-        pdCats.appendChild(b);
+        b.textContent = text;
+        b.onclick = ()=> { activeCategory = (text === 'Tous' ? null : text); setActiveCat(); renderGrid(); };
+        return b;
+      };
+
+      // Tous button
+      const allLeft = makeBtn('Tous');
+      allLeft.classList.add('active');
+      if(pdCatsLeft) pdCatsLeft.appendChild(allLeft);
+      if(pdCatsRight) pdCatsRight.appendChild(allLeft.cloneNode(true));
+
+      cats.forEach(c=>{
+        const bL = makeBtn(c);
+        if(pdCatsLeft) pdCatsLeft.appendChild(bL);
+        const bR = makeBtn(c);
+        if(pdCatsRight) pdCatsRight.appendChild(bR);
       });
+
+      // After rendering, ensure active state matches current activeCategory
+      setActiveCat();
     }
 
     function setActiveCat(){
-      document.querySelectorAll('.pd-category-btn').forEach(b=>{
-        b.classList.toggle('active', b.textContent === (activeCategory || 'Tous'));
+      const allBtns = document.querySelectorAll('.pd-category-btn');
+      allBtns.forEach(b=>{
+        const text = b.textContent;
+        b.classList.toggle('active', (activeCategory === null && text === 'Tous') || (text === activeCategory));
       });
     }
 
     function renderGrid(){
       const q = pdSearch ? pdSearch.value.trim().toLowerCase() : '';
-      filteredDocs = documents.filter(d=>{
+      filteredDocs = documents.filter(function(d){
         if(activeCategory && d.category !== activeCategory) return false;
         if(q && !((d.title||'').toLowerCase().includes(q) || (d.category||'').toLowerCase().includes(q))) return false;
         return true;
@@ -247,12 +273,13 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
         pdGrid.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted)">Aucun document trouvé.</div>';
         return;
       }
-      filteredDocs.forEach(doc=>{
+      filteredDocs.forEach(function(doc){
         const card = document.createElement('article');
         card.className = 'pd-card';
         const left = document.createElement('div');
         left.style.flex = '1';
-        left.innerHTML = '<div class="pd-title">' + escapeHtml(doc.title) + '</div><div class="pd-meta">' + escapeHtml(doc.category) + '</div>';
+        left.innerHTML = '<div class="pd-title">' + escapeHtml(doc.title) + '</div>' +
+                         '<div class="pd-meta">' + escapeHtml(doc.category) + '</div>';
         const actions = document.createElement('div');
         actions.style.display='flex'; actions.style.gap='8px';
         const btnView = document.createElement('button');
@@ -275,11 +302,14 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
 
     // preview modal controls
     function openPreview(title,path){
-      document.getElementById('previewTitle').textContent = title;
-      document.getElementById('previewIframe').src = path;
-      document.getElementById('previewModal').style.display = 'flex';
+      const tEl = document.getElementById('previewTitle');
+      const ifr = document.getElementById('previewIframe');
+      if(tEl) tEl.textContent = title;
+      if(ifr) ifr.src = path;
+      const modal = document.getElementById('previewModal');
+      if(modal) modal.style.display = 'flex';
     }
-    function closePreview(){ document.getElementById('previewIframe').src = ''; document.getElementById('previewModal').style.display = 'none'; }
+    function closePreview(){ const ifr = document.getElementById('previewIframe'); if(ifr) ifr.src = ''; const modal = document.getElementById('previewModal'); if(modal) modal.style.display = 'none'; }
 
     // attach globals
     window.openPreview = openPreview;
@@ -316,6 +346,10 @@ model-viewer{width:100%;height:58vh;border-radius:10px;background:#111;display:b
     }
   });
 
+  /* simple preview close helper for top-level modal */
+  function closePreview(){ var ifr = document.getElementById('previewIframe'); if(ifr) ifr.src=''; var modal = document.getElementById('previewModal'); if(modal) modal.style.display='none'; }
+  window.closePreview = closePreview;
 </script>
+
 </body>
 </html>
