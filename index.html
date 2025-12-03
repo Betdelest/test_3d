@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Projet BETL</title>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+<style>
+  :root{ --bg:#050816; --card:#07102a; --muted:#9aa6b2; --accent:#0a84ff; }
+  html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:Inter,Arial,Helvetica,sans-serif;overflow-x:hidden}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);box-shadow:0 6px 18px rgba(0,0,0,0.35)}
+  .logo{height:72px;width:72px;max-width:80px;max-height:80px;object-fit:contain;border-radius:8px;cursor:pointer}
+  .titleWrap{display:flex;flex-direction:column;min-width:0}
+  .title{font-weight:800;font-size:20px}
+  .subtitle{font-size:12px;color:var(--muted)}
+  .hdr-controls{margin-left:auto;display:flex;gap:8px}
+  select.model-select{background:transparent;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#fff;min-width:170px}
+  .container{padding:12px;display:grid;grid-template-columns:1fr 320px;gap:12px}
+  @media(max-width:980px){.container{grid-template-columns:1fr}.logo{height:54px;width:54px}}
+  main.card, aside.card{background:var(--card);border-radius:10px;padding:12px}
+  model-viewer{width:100%;height:58vh;background:#111;border-radius:10px;display:block}
+  .progress-wrap{display:flex;align-items:center;gap:10px;margin-top:10px;transition:opacity .3s}
+  .progress{flex:1;height:8px;background:#111;border-radius:999px;overflow:hidden}
+  .progress > span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#4bd3ff);transition:width .25s}
+  .progress-label{min-width:44px;text-align:right;color:var(--muted);font-size:13px;transition:opacity .3s}
+  .plans-docs{padding:12px;border-radius:8px;background:rgba(255,255,255,0.03)}
+  .pd-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .pd-search{width:100%;padding:8px 10px;margin-top:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#0004;color:#fff}
+  .pd-categories{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .pd-category-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);padding:6px 12px;border-radius:8px;color:#fff;cursor:pointer}
+  .pd-category-btn.active{background:var(--accent);border-color:var(--accent);font-weight:700}
+  .pd-grid{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+  .pd-card{display:flex;justify-content:space-between;background:rgba(255,255,255,0.04);padding:12px;border-radius:10px}
+  .pd-title{font-size:14px;font-weight:600}
+  .pd-meta{font-size:12px;color:var(--muted)}
+  .btn{background:var(--accent);border:0;padding:6px 14px;color:#fff;border-radius:8px;cursor:pointer;font-weight:600}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.2);padding:6px 12px;color:#fff;border-radius:8px;cursor:pointer}
+  .betl-footer{margin-top:18px;padding:16px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);color:#8fa3b5;font-size:13px}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:1500}
+  .modal{width:min(95%,900px);height:min(90vh,900px);background:#08101a;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+  .modal-header{padding:10px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;justify-content:space-between}
+  .modal-body{flex:1;background:#000}
+  .preview-iframe{width:100%;height:100%;border:0}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash" class="splash" style="position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:2000">
+  <div style="text-align:center">
+    <img class="splash-logo" src="BETL.png" style="width:220px;max-width:80vw;max-height:220px;object-fit:contain" alt="BETL">
+    <div style="color:var(--muted);margin-top:8px">Chargement… <span id="splashPct">0%</span></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <img class="logo" src="BETL.png" alt="BETL" onclick="window.open('https://www.facebook.com/BETL120','_blank')">
+  <div class="titleWrap">
+    <div class="title">BETL — Visualisation 3D & Plans</div>
+    <div class="subtitle">Voir ta maison avant de l'habiter</div>
+  </div>
+  <div id="hdrControls" class="hdr-controls"></div>
+</header>
+
+<!-- CONTENT -->
+<div class="container">
+
+  <!-- LEFT: 3D VIEW -->
+  <main class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-weight:700">Aperçu 3D</div>
+      <div style="color:var(--muted);font-size:12px">2 modèle(s)</div>
+    </div>
+
+    <model-viewer id="viewer" src="models/Djanet_arch.glb" ar ar-modes="scene-viewer webxr" camera-controls>
+           <button slot="ar-button" class="btn">Voir en AR</button>
+         </model-viewer>
+
+    <div id="progressWrap" class="progress-wrap" style="">
+      <div class="progress"><span id="progressBar"></span></div>
+      <div class="progress-label" id="progressLabel">0%</div>
+    </div>
+
+  </main>
+
+  <!-- RIGHT: DOCUMENTS (single header kept here) -->
+  <aside class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-weight:700">Plans & Documents</div>
+      <div style="font-size:12px;color:var(--muted)">3 fichier(s)</div>
+    </div>
+
+    <!-- SEARCH + CATEGORIES (only one header present above) -->
+    <div class="plans-docs" style="margin-top:10px">
+      <input id="pd-search" class="pd-search" placeholder="Rechercher un document…">
+      <div id="pd-categories" class="pd-categories"></div>
+      <div id="pd-grid" class="pd-grid"></div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="betl-footer">
+      <div class="f-title">BETL — Bureau d’Études Techniques</div>
+      <div class="f-slogan" style="color:#4cc3ff;margin-top:6px">Voir ta maison avant de l'habiter</div>
+      <div class="f-line">📍 Z.I Chihani Bachir, El Khroub, Constantine</div>
+      <div class="f-line">📞 0558 11 55 36 • 📧 bureautechniquedelest@gmail.com</div>
+      <div class="f-line">🌐 Facebook : BETL120</div>
+      <div class="f-copy" style="color:#6f7c88;margin-top:8px">© 2025 BETL — Tous droits réservés</div>
+    </footer>
+  </aside>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div id="previewModal" class="modal-backdrop"><div class="modal">
+  <div class="modal-header">
+    <div id="previewTitle"></div>
+    <button class="btn-ghost" onclick="closePreview()">Fermer</button>
+  </div>
+  <div class="modal-body"><iframe id="previewIframe" class="preview-iframe"></iframe></div>
+</div></div>
+
+<script>
+  const MODELS = ["Djanet_arch.glb","Djanet_gc.glb"];
+  const PDFS = {"Architecture":["bentelha permis -modi02 mise en page-Model.pdf"],"GC":["BETL.png","permis (1)-Model.pdf"],"Autre":[]};
+
+  /* header selector */
+  (function initHeaderSelector(){
+    const hdr = document.getElementById('hdrControls');
+    if(!hdr || !MODELS || !MODELS.length) return;
+    const sel = document.createElement('select'); sel.className='model-select';
+    const opt0 = document.createElement('option'); opt0.value=''; opt0.textContent='Choisir modèle 3D'; sel.appendChild(opt0);
+    MODELS.forEach(m=>{ const o=document.createElement('option'); o.value='models/'+encodeURIComponent(m); o.textContent=m; sel.appendChild(o); });
+    sel.addEventListener('change', ()=> { const v=document.getElementById('viewer'); if(v && sel.value) v.src = sel.value; });
+    hdr.appendChild(sel);
+  })();
+
+  /* build docs array */
+  (function buildDocs(){
+    const docs=[];
+    Object.keys(PDFS||{}).forEach(cat=>{
+      const pretty = (cat==='GC') ? 'Génie Civil' : cat;
+      (PDFS[cat]||[]).forEach(f=> docs.push({ title:f, category:pretty, file:'pdfs/'+cat+'/'+encodeURIComponent(f) }));
+    });
+    window.DOCS = docs;
+  })();
+
+  /* Plans & Documents UI */
+  (function(){
+    const pdGrid = document.getElementById('pd-grid');
+    const pdCats = document.getElementById('pd-categories');
+    const pdSearch = document.getElementById('pd-search');
+    let active='Tous';
+
+    function categoriesList(){
+      const base=['Tous','Architecture','Génie Civil','Autre'];
+      const found = [...new Set((window.DOCS||[]).map(d=>d.category))].filter(Boolean);
+      return base.filter(c=> c==='Tous' || found.includes(c));
+    }
+
+    function renderCats(){
+      pdCats.innerHTML='';
+      categoriesList().forEach(c=>{
+        const b=document.createElement('button'); b.className='pd-category-btn'; b.textContent=c;
+        if(c===active) b.classList.add('active');
+        b.onclick = ()=> { active=c; renderCats(); renderList(); };
+        pdCats.appendChild(b);
+      });
+    }
+
+    function renderList(){
+      pdGrid.innerHTML='';
+      const q = (pdSearch && pdSearch.value) ? pdSearch.value.trim().toLowerCase() : '';
+      const items = (window.DOCS||[]).filter(d=>{
+        const okCat = (active==='Tous') || (d.category===active);
+        const okQ = q === '' || (d.title && d.title.toLowerCase().includes(q));
+        return okCat && okQ;
+      });
+
+      if(!items.length){
+        const m=document.createElement('div'); m.style.padding='12px'; m.style.textAlign='center'; m.style.color='var(--muted)';
+        m.textContent='Aucun document trouvé.'; pdGrid.appendChild(m); return;
+      }
+
+      items.forEach(doc=>{
+        const card = document.createElement('div'); card.className='pd-card';
+        const left = document.createElement('div'); left.style.flex='1';
+        const title = document.createElement('div'); title.className='pd-title'; title.textContent = doc.title;
+        const meta = document.createElement('div'); meta.className='pd-meta'; meta.textContent = doc.category;
+        left.appendChild(title); left.appendChild(meta);
+        const right = document.createElement('div'); right.style.display='flex'; right.style.gap='8px';
+        const v = document.createElement('button'); v.className='btn'; v.textContent='Voir'; v.onclick = ()=> openPreview(doc.title, doc.file);
+        const d = document.createElement('button'); d.className='btn-ghost'; d.textContent='Détails'; d.onclick = ()=> alert('Détails: '+doc.title);
+        right.appendChild(v); right.appendChild(d);
+        card.appendChild(left); card.appendChild(right);
+        pdGrid.appendChild(card);
+      });
+    }
+
+    if(pdSearch) pdSearch.addEventListener('input', renderList);
+    renderCats(); renderList();
+  })();
+
+  /* preview */
+  function openPreview(title,path){
+    const t=document.getElementById('previewTitle'); const ifr=document.getElementById('previewIframe');
+    if(t) t.textContent=title; if(ifr) ifr.src = path; document.querySelector('.modal-backdrop').style.display='flex';
+  }
+  function closePreview(){ const ifr=document.getElementById('previewIframe'); if(ifr) ifr.src=''; document.querySelector('.modal-backdrop').style.display='none'; }
+  window.closePreview = closePreview;
+
+  /* progress + splash: hide progress area when 100% */
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const viewer = document.getElementById('viewer');
+    const progressBar = document.getElementById('progressBar');
+    const progressLabel = document.getElementById('progressLabel');
+    const progressWrap = document.getElementById('progressWrap');
+    const splash = document.getElementById('splash');
+
+    if(!viewer) {
+      // no viewer: hide splash immediately
+      if(splash) splash.style.display='none';
+      if(progressWrap) progressWrap.style.display='none';
+      return;
+    }
+
+    viewer.addEventListener('progress', (e)=>{
+      const pct = Math.floor((e.detail.totalProgress||0)*100);
+      if(progressBar) progressBar.style.width = pct + '%';
+      if(progressLabel) progressLabel.textContent = pct + '%';
+      if(splash && document.getElementById('splashPct')) document.getElementById('splashPct').textContent = pct + '%';
+
+      if(pct >= 100){
+        // fade then hide progress and splash
+        if(progressWrap){
+          progressWrap.style.opacity = '0';
+          setTimeout(()=> { progressWrap.style.display = 'none'; }, 350);
+        }
+        if(splash){
+          splash.style.opacity = '0';
+          setTimeout(()=> { splash.style.display = 'none'; }, 450);
+        }
+      }
+    });
+
+    // Safety fallback: if viewer doesn't fire progress in 6s, hide splash
+    setTimeout(()=>{
+      if(splash && splash.style.display !== 'none'){
+        splash.style.opacity = '0'; setTimeout(()=>splash.style.display='none',350);
+      }
+      if(progressWrap && progressWrap.style.display !== 'none'){
+        progressWrap.style.opacity='0'; setTimeout(()=>progressWrap.style.display='none',350);
+      }
+    }, 6000);
+
+  });
+</script>
+
+</body>
+</html>
